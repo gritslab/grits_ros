@@ -1,0 +1,6 @@
+<launch>
+    <node name="quad1" pkg="optitrack_driver" type="optitrack">
+        <param name="vrpn_server_ip" value="192.168.2.145" />
+        <param name="numeric_id" value="1" />
+    </node>
+</launch>
