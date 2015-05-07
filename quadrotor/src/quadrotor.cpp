@@ -24,7 +24,7 @@
 //------------------------------------------------------------------------------
 // Defines
 //------------------------------------------------------------------------------
-#define UPDATE_RATE 100
+#define UPDATE_RATE 50
 
 //------------------------------------------------------------------------------
 // Namespaces
@@ -69,6 +69,7 @@ struct MsgPositionDesired {
 //------------------------------------------------------------------------------
 // Function Declarations
 //------------------------------------------------------------------------------
+void set_pos_data(float x, float y, float z, float yaw, MsgPosition& pos);
 void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg);
 uint8_t parityCalc(uint8_t* msg, uint8_t parityByteInd);
 int set_interface_attribs(int fd, int speed, int parity);
@@ -120,7 +121,12 @@ int main(int argc, char *argv[])
     // Loop
     ros::Rate loop_rate(UPDATE_RATE);
     while (ros::ok()) {
-        ROS_INFO("Sending: %2.3f, %2.3f, %2.3f, %2.3f", pos.x, pos.y, pos.z, pos.yaw);
+        // XXX: test
+        // t = ros::Time::now();
+        // set_pos_data(10*cos(t.toSec()), 10*sin(t.toSec()), 10*cos(t.toSec()), 10*sin(t.toSec()), pos);
+
+        ROS_INFO("Sending: %2.3f, %2.3f, %2.3f, %2.3f",
+                 pos.x, pos.y, pos.z, pos.yaw);
         write(fd, &pos, sizeof(pos));
         // write(fd, &posDesired, sizeof(posDesired));
         loop_rate.sleep();
@@ -133,14 +139,20 @@ int main(int argc, char *argv[])
 //------------------------------------------------------------------------------
 // Function Definitions
 //------------------------------------------------------------------------------
-void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg)
+void set_pos_data(float x, float y, float z, float yaw, MsgPosition& pos)
 {
-    pos.x = msg.y;
-    pos.y = msg.x;
-    pos.z = -msg.z;
-    pos.yaw = msg.yaw/M_PI * 180.0f;
+    pos.x = x;
+    pos.y = y;
+    pos.z = z;
+    pos.yaw = yaw;
 
     pos.header.parity = parityCalc((uint8_t*)&pos, sizeof(pos));
+}
+
+void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg)
+{
+    // Convert from ENU to NED
+    set_pos_data(msg.y, msg.x, -msg.z, msg.yaw/M_PI * 180.0f, pos);
 }
 
 uint8_t parityCalc(uint8_t* msg, uint8_t msgSize)
