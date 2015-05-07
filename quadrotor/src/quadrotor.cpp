@@ -19,7 +19,7 @@
 #include <termios.h>
 #include <math.h>
 
-#include <geometry_msgs/TransformStamped.h>
+#include <optitrack/PoseXYZRPY.h>
 
 //------------------------------------------------------------------------------
 // Defines
@@ -69,7 +69,7 @@ struct MsgPositionDesired {
 //------------------------------------------------------------------------------
 // Function Declarations
 //------------------------------------------------------------------------------
-void handle_quad_pose(const geometry_msgs::TransformStamped& msg);
+void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg);
 uint8_t parityCalc(uint8_t* msg, uint8_t parityByteInd);
 int set_interface_attribs(int fd, int speed, int parity);
 void set_blocking(int fd, int should_block);
@@ -79,16 +79,15 @@ void set_blocking(int fd, int should_block);
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-    ROS_INFO("Running Quad Node");
+    ROS_INFO("Running Quadrotor Node");
 
     ros::init(argc, argv, "quadrotor");
 
     ros::NodeHandle node_handle;
 
-    ros::Subscriber sub_quad_pose;
-    sub_quad_pose = node_handle.subscribe("/quad1/pose",
-                                          1,
-                                          handle_quad_pose);
+    ros::Subscriber poseXYZRPY_sub = node_handle.subscribe("/poseXYZRPY",
+                                                           1,
+                                                           handle_poseXYZRPY);
 
     // Setup serial comms
     string portname = "/dev/ttyUSB0";
@@ -134,19 +133,13 @@ int main(int argc, char *argv[])
 //------------------------------------------------------------------------------
 // Function Definitions
 //------------------------------------------------------------------------------
-void handle_quad_pose(const geometry_msgs::TransformStamped& msg)
+void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg)
 {
-    pos.x = msg.transform.translation.x;
-    pos.y = msg.transform.translation.y;
-    pos.z = msg.transform.translation.z;
+    pos.x = msg.y;
+    pos.y = msg.x;
+    pos.z = -msg.z;
+    pos.yaw = msg.yaw/M_PI * 180.0f;
 
-    float q0, q1, q2, q3;
-    q0 = msg.transform.rotation.x;
-    q1 = msg.transform.rotation.y;
-    q2 = msg.transform.rotation.z;
-    q3 = msg.transform.rotation.w;
-
-    pos.yaw = 180*atan2(2.0*(q0*q3 + q1*q2), 1.0 - 2.0*(q2*q2 + q3*q3))/M_PI;
     pos.header.parity = parityCalc((uint8_t*)&pos, sizeof(pos));
 }
 
