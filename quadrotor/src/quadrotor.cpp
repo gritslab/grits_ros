@@ -24,7 +24,7 @@
 //------------------------------------------------------------------------------
 // Defines
 //------------------------------------------------------------------------------
-#define UPDATE_RATE 50
+#define UPDATE_RATE 25
 
 //------------------------------------------------------------------------------
 // Namespaces
@@ -97,14 +97,15 @@ int main(int argc, char *argv[])
     pos.header.type = POSITION;
     pos.header.parity = parityCalc((uint8_t*)&pos, sizeof(pos));
 
-    // MsgPositionDesired posDesired;
-    // memset(&posDesired, 0, sizeof(posDesired));
-    // posDesired.header.marker = 0xFF;
-    // posDesired.header.type = POSITION_DESIRED;
-    // posDesired.x = 0;
-    // posDesired.y = 0;
-    // posDesired.z = 0;
-    // posDesired.header.parity = parityCalc((uint8_t*)&posDesired, sizeof(posDesired));
+    MsgPositionDesired posDesired;
+    memset(&posDesired, 0, sizeof(posDesired));
+    posDesired.header.marker = 0xFF;
+    posDesired.header.type = POSITION_DESIRED;
+    posDesired.x = 0.0f;
+    posDesired.y = 1.0f;
+    posDesired.z = -1.5f;
+    posDesired.yaw = 270.0f;
+    posDesired.header.parity = parityCalc((uint8_t*)&posDesired, sizeof(posDesired));
 
     ROS_INFO("Opening port: %s", portname.c_str());
     int fd = open(portname.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
@@ -125,11 +126,16 @@ int main(int argc, char *argv[])
         // t = ros::Time::now();
         // set_pos_data(10*cos(t.toSec()), 10*sin(t.toSec()), 10*cos(t.toSec()), 10*sin(t.toSec()), pos);
 
-        ROS_INFO("Sending: %2.3f, %2.3f, %2.3f, %2.3f",
+        ROS_INFO("Position: %2.3f, %2.3f, %2.3f, %2.3f",
                  pos.x, pos.y, pos.z, pos.yaw);
         write(fd, &pos, sizeof(pos));
-        // write(fd, &posDesired, sizeof(posDesired));
         loop_rate.sleep();
+
+        // ROS_INFO("Desired: %2.3f, %2.3f, %2.3f, %2.3f",
+        //          posDesired.x, posDesired.y, posDesired.z, posDesired.yaw);
+        write(fd, &posDesired, sizeof(posDesired));
+        loop_rate.sleep();
+
         ros::spinOnce();
     }
     close(fd);
