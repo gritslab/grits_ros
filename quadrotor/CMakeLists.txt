@@ -104,15 +104,15 @@ include_directories(
 # )
 
 # Declare a cpp executable
-add_executable(quadrotor
-               src/quadrotor.cpp)
+add_executable(communicator
+               src/communicator.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(quadrotor_node quadrotor_generate_messages_cpp)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(quadrotor
+target_link_libraries(communicator
                       ${catkin_LIBRARIES}
 )
 
@@ -131,7 +131,7 @@ target_link_libraries(quadrotor
 # )
 
 # Mark executables and/or libraries for installation
-install(TARGETS quadrotor
+install(TARGETS communicator
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

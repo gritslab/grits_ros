@@ -1,7 +1,7 @@
 /**
- * @file quadrotor.cpp
+ * @file communicator.cpp
  *
- * @brief Quadrotor ROS node
+ * @brief Quadrotor ROS node communication node
  *
  * @author Rowland O'Flaherty
  *
@@ -80,9 +80,9 @@ void set_blocking(int fd, int should_block);
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-    ROS_INFO("Running Quadrotor Node");
+    ROS_INFO("Running Quadrotor Communicator Node");
 
-    ros::init(argc, argv, "quadrotor");
+    ros::init(argc, argv, "communicator");
 
     ros::NodeHandle node_handle;
 
