@@ -7,16 +7,18 @@ project(quadrotor)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  # message_generation
   geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
+find_package(Eigen3 REQUIRED)
 # find_package(Boost REQUIRED COMPONENTS system)
 
 
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
+# Uncomment this if the package has a setup.py. This macro ensures
+# modules and global scripts declared therein get installed
+# See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
 # catkin_python_setup()
 
 ################################################
@@ -43,18 +45,17 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
+# Generate messages in the 'msg' folder
 # add_message_files(
 #   FILES
-#   Message1.msg
-#   Message2.msg
+#   FiniteState.msg
 # )
 
-## Generate services in the 'srv' folder
+# Generate services in the 'srv' folder
 # add_service_files(
+#   DIRECTORY srv
 #   FILES
-#   Service1.srv
-#   Service2.srv
+#   commander.srv
 # )
 
 ## Generate actions in the 'action' folder
@@ -64,7 +65,7 @@ find_package(catkin REQUIRED COMPONENTS
 #   Action2.action
 # )
 
-## Generate added messages and services with any dependencies listed here
+# Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
 #   std_msgs
@@ -80,10 +81,11 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-	INCLUDE_DIRS include
-#  LIBRARIES quadrotor
-	CATKIN_DEPENDS roscpp std_msgs geometry_msgs
-#  DEPENDS system_lib
+               INCLUDE_DIRS include
+               # LIBRARIES quadrotor
+               CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs
+               # CATKIN_DEPENDS roscpp rospy message_runtime std_msgs geometry_msgs
+               #  DEPENDS system_lib
 )
 
 ###########
@@ -95,26 +97,33 @@ catkin_package(
 # include_directories(include)
 include_directories(
     include
-	${catkin_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIR}
 )
 
-## Declare a cpp library
+# Declare a cpp library
 # add_library(quadrotor
-#   src/${PROJECT_NAME}/quadrotor.cpp
+#             src/communicator.cpp
+#             src/planner.cpp
 # )
+# Specify libraries to link a library or executable target against
+# target_link_libraries(quadrotor
+#                       ${catkin_LIBRARIES}
+# )
+# add_dependencies(quadrotor ${catkin_EXPORTED_TARGETS})
 
 # Declare a cpp executable
-add_executable(communicator
-               src/communicator.cpp)
+add_executable(communicator src/communicator.cpp)
+target_link_libraries(communicator ${catkin_LIBRARIES})
+
+add_executable(planner src/planner.cpp)
+target_link_libraries(planner ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(quadrotor_node quadrotor_generate_messages_cpp)
 
-# Specify libraries to link a library or executable target against
-target_link_libraries(communicator
-                      ${catkin_LIBRARIES}
-)
+
 
 #############
 ## Install ##
@@ -123,19 +132,25 @@ target_link_libraries(communicator
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
+# Mark executable scripts (Python etc.) for installation
+# in contrast to setup.py, you can choose the destination
 # install(PROGRAMS
-#   scripts/my_python_script
+#   scripts/commander
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
 # Mark executables and/or libraries for installation
-install(TARGETS communicator
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# install(TARGETS communicator
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
+
+# install(TARGETS planner
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

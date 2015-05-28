@@ -11,10 +11,10 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
-find_package(Eigen3 REQUIRED)
-
 ## System dependencies are found with CMake's conventions
+find_package(Eigen3 REQUIRED)
 # find_package(Boost REQUIRED COMPONENTS system)
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -82,10 +82,10 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
- INCLUDE_DIRS include
-#  LIBRARIES optitrack
- CATKIN_DEPENDS geometry_msgs roscpp tf message_runtime
-#  DEPENDS system_lib
+               INCLUDE_DIRS include
+               #  LIBRARIES optitrack
+               CATKIN_DEPENDS geometry_msgs roscpp tf message_runtime
+               #  DEPENDS system_lib
 )
 
 ###########
@@ -107,18 +107,19 @@ include_directories(
 # )
 
 # Declare a cpp executable
-add_executable(optitrack
-               src/optitrack.cpp)
+add_executable(optitrack src/optitrack.cpp)
+
+target_link_libraries(optitrack
+                      vrpn
+                      ${catkin_LIBRARIES}
+)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(optitrack_node optitrack_generate_messages_cpp)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(optitrack
-                      vrpn
-                      ${catkin_LIBRARIES}
-)
+
 
 #############
 ## Install ##
@@ -135,11 +136,11 @@ target_link_libraries(optitrack
 # )
 
 # Mark executables and/or libraries for installation
-install(TARGETS optitrack
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# install(TARGETS optitrack
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

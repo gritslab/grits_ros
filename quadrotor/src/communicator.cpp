@@ -1,7 +1,7 @@
 /**
  * @file communicator.cpp
  *
- * @brief Quadrotor ROS node communication node
+ * @brief ROS quadrotor communication node
  *
  * @author Rowland O'Flaherty
  *
@@ -64,14 +64,19 @@ struct MsgPositionDesired {
     float y;
     float z;
     float yaw;
-};
+} pos_desired;
 
 //------------------------------------------------------------------------------
 // Function Declarations
 //------------------------------------------------------------------------------
 void set_pos_data(float x, float y, float z, float yaw, MsgPosition& pos);
+void set_pos_data(float x, float y, float z, float yaw,
+                  MsgPositionDesired& pos_desired);
+
 void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg);
-uint8_t parityCalc(uint8_t* msg, uint8_t parityByteInd);
+void handle_pos_desired(const optitrack::PoseXYZRPY& msg);
+
+uint8_t parity_calc(uint8_t* msg, uint8_t parity_byte_ind);
 int set_interface_attribs(int fd, int speed, int parity);
 void set_blocking(int fd, int should_block);
 
@@ -84,28 +89,31 @@ int main(int argc, char *argv[])
 
     ros::init(argc, argv, "communicator");
 
-    ros::NodeHandle node_handle;
+    ros::NodeHandle nh;
 
-    ros::Subscriber poseXYZRPY_sub = node_handle.subscribe("/poseXYZRPY",
-                                                           1,
-                                                           handle_poseXYZRPY);
+    ros::Subscriber poseXYZRPY_sub = nh.subscribe("/poseXYZRPY",
+                                                  1,
+                                                  handle_poseXYZRPY);
+
+    ros::Subscriber pos_desired_sub = nh.subscribe("/pos_desired",
+                                                   1,
+                                                   handle_pos_desired);
 
     // Setup serial comms
     string portname = "/dev/ttyUSB0";
+
+    // Initialize messages
     memset(&pos, 0, sizeof(pos));
     pos.header.marker = 0xFF;
     pos.header.type = POSITION;
-    pos.header.parity = parityCalc((uint8_t*)&pos, sizeof(pos));
+    pos.header.parity = parity_calc((uint8_t*)&pos, sizeof(pos));
 
-    MsgPositionDesired posDesired;
-    memset(&posDesired, 0, sizeof(posDesired));
-    posDesired.header.marker = 0xFF;
-    posDesired.header.type = POSITION_DESIRED;
-    posDesired.x = 0.0f;
-    posDesired.y = 1.0f;
-    posDesired.z = -1.5f;
-    posDesired.yaw = 270.0f;
-    posDesired.header.parity = parityCalc((uint8_t*)&posDesired, sizeof(posDesired));
+    memset(&pos_desired, 0, sizeof(pos_desired));
+    pos_desired.header.marker = 0xFF;
+    pos_desired.header.type = POSITION_DESIRED;
+    pos_desired.yaw = 270.0f;
+    pos_desired.header.parity = parity_calc((uint8_t*)&pos_desired,
+                                           sizeof(pos_desired));
 
     ROS_INFO("Opening port: %s", portname.c_str());
     int fd = open(portname.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
@@ -122,19 +130,15 @@ int main(int argc, char *argv[])
     // Loop
     ros::Rate loop_rate(UPDATE_RATE);
     while (ros::ok()) {
-        // XXX: test
-        // t = ros::Time::now();
-        // set_pos_data(10*cos(t.toSec()), 10*sin(t.toSec()), 10*cos(t.toSec()), 10*sin(t.toSec()), pos);
-
-        ROS_INFO("Position: %2.3f, %2.3f, %2.3f, %2.3f",
-                 pos.x, pos.y, pos.z, pos.yaw);
         write(fd, &pos, sizeof(pos));
         loop_rate.sleep();
 
-        // ROS_INFO("Desired: %2.3f, %2.3f, %2.3f, %2.3f",
-        //          posDesired.x, posDesired.y, posDesired.z, posDesired.yaw);
-        write(fd, &posDesired, sizeof(posDesired));
+        write(fd, &pos_desired, sizeof(pos_desired));
         loop_rate.sleep();
+
+        ROS_INFO("Sent: %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f",
+                 pos.x, pos.y, pos.z, pos.yaw,
+                 pos_desired.x, pos_desired.y, pos_desired.z, pos_desired.yaw);
 
         ros::spinOnce();
     }
@@ -152,22 +156,41 @@ void set_pos_data(float x, float y, float z, float yaw, MsgPosition& pos)
     pos.z = z;
     pos.yaw = yaw;
 
-    pos.header.parity = parityCalc((uint8_t*)&pos, sizeof(pos));
+    pos.header.parity = parity_calc((uint8_t*)&pos, sizeof(pos));
+}
+
+void set_pos_desired_data(float x, float y, float z, float yaw,
+                  MsgPositionDesired& pos_desired)
+{
+    pos_desired.x = x;
+    pos_desired.y = y;
+    pos_desired.z = z;
+    pos_desired.yaw = yaw;
+
+    pos_desired.header.parity = parity_calc((uint8_t*)&pos_desired,
+                                            sizeof(pos_desired));
 }
 
 void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg)
 {
-    // Convert from ENU to NED
+    // Convert from ENU to NED and degrees
     set_pos_data(msg.y, msg.x, -msg.z, msg.yaw/M_PI * 180.0f, pos);
 }
 
-uint8_t parityCalc(uint8_t* msg, uint8_t msgSize)
+void handle_pos_desired(const optitrack::PoseXYZRPY& msg)
 {
-    uint8_t parityByte = 0;
-    for (uint8_t i=PARITY_BYTE_IND+1; i<msgSize; ++i) {
-        parityByte ^= msg[i];
+    // Convert from ENU to NED and degrees
+    set_pos_desired_data(msg.y, msg.x, -msg.z, msg.yaw/M_PI * 180.0f,
+                         pos_desired);
+}
+
+uint8_t parity_calc(uint8_t* msg, uint8_t msg_size)
+{
+    uint8_t parity_byte = 0;
+    for (uint8_t i=PARITY_BYTE_IND+1; i<msg_size; ++i) {
+        parity_byte ^= msg[i];
     }
-    return parityByte;
+    return parity_byte;
 }
 
 int set_interface_attribs (int fd, int speed, int parity)

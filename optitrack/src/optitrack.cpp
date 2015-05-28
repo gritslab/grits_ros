@@ -17,8 +17,11 @@
 #include <vrpn_Connection.h>
 #include <vrpn_Tracker.h>
 #include <Eigen/Dense>
+
+// Messages
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Vector3.h>
 #include <optitrack/PoseXYZRPY.h>
 
 //------------------------------------------------------------------------------
@@ -53,7 +56,9 @@ struct Trackable {
     Quaterniond local;
     Quaterniond global;
 
+    double t;
     Vector3d pos;
+    Vector3d vel;
     Quaterniond quat;
     double roll, pitch, yaw;
 
@@ -68,6 +73,9 @@ struct Trackable {
 
     geometry_msgs::Pose2D pose2D_msg;
     ros::Publisher pose2D_pub;
+
+    geometry_msgs::Vector3 vel_msg;
+    ros::Publisher vel_pub;
 
     optitrack::PoseXYZRPY poseXYZRPY_msg;
     ros::Publisher poseXYZRPY_pub;
@@ -88,6 +96,7 @@ struct Trackable {
         raw_pub = nh.advertise<geometry_msgs::Pose>("raw",1);
         pose_pub = nh.advertise<geometry_msgs::Pose>("pose",1);
         pose2D_pub = nh.advertise<geometry_msgs::Pose2D>("pose2D",1);
+        vel_pub = nh.advertise<geometry_msgs::Vector3>("vel",1);
         poseXYZRPY_pub = nh.advertise<optitrack::PoseXYZRPY>("poseXYZRPY",1);
     }
 
@@ -96,8 +105,13 @@ struct Trackable {
         tracker->mainloop();
         connection->mainloop();
 
+        double t_prev = t;
+        Vector3d pos_prev = pos;
+
+        t = ros::Time::now().toSec();
         pos = global.inverse()*raw_pos;
         quat = aircraft_nominal.inverse()*(global.inverse()*raw_quat)*local;
+        vel = (pos - pos_prev) / (t - t_prev);
 
         quat2euler(quat, roll, pitch, yaw);
     }
@@ -134,6 +148,13 @@ struct Trackable {
         pose2D_msg.theta = wrap_to_pi(M_PI/2 - yaw);
 
         pose2D_pub.publish(pose2D_msg);
+
+        // Vel
+        vel_msg.x = vel(0);
+        vel_msg.y = vel(1);
+        vel_msg.z = vel(2);
+
+        vel_pub.publish(vel_msg);
 
         // Pose XYZ RPY
         poseXYZRPY_msg.x = pos(0);
