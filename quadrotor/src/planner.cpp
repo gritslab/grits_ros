@@ -72,11 +72,11 @@ int main(int argc, char *argv[])
     Vector6d x0;
     x0 << 1.0, 0.0, 1.5, 0.0, 0.0, 0.0;
 
-    double move_dist = 1.5;   // meters
-    double move_period = 20; // seconds
+    double move_dist = 1.0;   // meters
+    double move_period = 30; // seconds
 
-    double pos_ball = .2;
-    double vel_ball = .1;
+    double pos_ball = .05;
+    double vel_ball = .05;
 
 
     // Initialize variables
