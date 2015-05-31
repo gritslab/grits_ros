@@ -15,6 +15,8 @@
 //------------------------------------------------------------------------------
 #include <ros/ros.h>
 #include <Eigen/Dense>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 // Messages
 #include <geometry_msgs/Vector3.h>
@@ -38,7 +40,8 @@ typedef Matrix<double, 6, 1> Vector6d;
 
 enum FiniteState {
     INITIALIZING = 0,
-    RUNNING = 1
+    HOLDING = 1,
+    RUNNING = 2
 };
 
 
@@ -46,11 +49,13 @@ enum FiniteState {
 // Global Constants Declarations
 //------------------------------------------------------------------------------
 const int UPDATE_RATE = 25;
+const int SERVICE_PORT = 21234;
+const int BUF_SIZE = 2048;
 
 //------------------------------------------------------------------------------
 // Global Variable Declarations
 //------------------------------------------------------------------------------
-// States
+bool state_valid = false;
 Vector6d x;
 FiniteState s;
 
@@ -58,6 +63,9 @@ FiniteState s;
 // Function Declarations
 //------------------------------------------------------------------------------
 void set_pos_desired(const Vector3d& pos, optitrack::PoseXYZRPY& pos_desired);
+int setup_udp_socket(int& fd);
+void parse_buffer(unsigned char* buf, optitrack::PoseXYZRPY& pos_desired);
+
 
 // Subscriber handles
 void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg);
@@ -70,14 +78,10 @@ int main(int argc, char *argv[])
 {
     // Initialize constants
     Vector6d x0;
-    x0 << 1.0, 0.0, 1.5, 0.0, 0.0, 0.0;
+    x0 << 0.0, 0.0, 1.75, 0.0, 0.0, 0.0;
 
-    double move_dist = 1.0;   // meters
-    double move_period = 30; // seconds
-
-    double pos_ball = .05;
+    double pos_ball = .1;
     double vel_ball = .05;
-
 
     // Initialize variables
     double t;
@@ -107,64 +111,72 @@ int main(int argc, char *argv[])
     ros::Publisher pos_desired_pub;
     pos_desired_pub = nh.advertise<optitrack::PoseXYZRPY>("pos_desired",1);
 
+    // Setup UDP socket
+    unsigned char buf[BUF_SIZE];
+    struct sockaddr_in remote_addr; // Address of remote computer
+    socklen_t addr_len = sizeof(remote_addr);
+    int fd; // socket file descriptor
+    if (setup_udp_socket(fd)) {
+        return 1;
+    }
+
     // Loop
     ros::Rate loop_rate(UPDATE_RATE);
     while (ros::ok()) {
+        if (state_valid) {
 
         // Update
-        t = ros::Time::now().toSec();
+            t = ros::Time::now().toSec();
+            int recv_len = recvfrom(fd, buf, BUF_SIZE, 0,
+                                    (struct sockaddr *)&remote_addr, &addr_len);
 
-        pos_del = (x.head(3) - x0.head(3)).norm();
-        vel_del = (x.tail(3) - x0.tail(3)).norm();
+            pos_del = (x.head(2) - x0.head(2)).norm();
+            vel_del = (x.tail(3) - x0.tail(3)).norm();
 
-        switch (s) {
+            switch (s) {
 
-            case INITIALIZING: {
-                if (pos_del < pos_ball && vel_del < vel_ball) {
-                    t0 = t;
-                    s = RUNNING;
-                } else {
-                    set_pos_desired(x0.head(3), pos_desired);
+                case INITIALIZING: {
+                    if (pos_del < pos_ball && vel_del < vel_ball) {
+                        t0 = t;
+                        s = HOLDING;
+                    } else {
+                        set_pos_desired(x0.head(3), pos_desired);
+                    }
+
+                    break;
                 }
 
-                printf("State: %d, ", s);
-                printf("Pos: % 2.3f, % 2.3f, % 2.3f, ", x(0), x(1), x(2));
-                printf("Pos Del: % 2.3f, ", pos_del);
-                printf("Vel: % 2.3f, % 2.3f, % 2.3f, ", x(3), x(4), x(5));
-                printf("Vel Del: % 2.3f, ", vel_del);
-                printf("\n");
+                case HOLDING: {
+                    set_pos_desired(x0.head(3), pos_desired);
 
-                break;
+                    if (recv_len > 0) {
+                        s = RUNNING;
+                    }
+
+                    break;
+                }
+
+                case RUNNING: {
+                    if (recv_len > 0) {
+                        parse_buffer(buf, pos_desired);
+                    }
+
+                    break;
+                }
             }
 
-            case RUNNING: {
-                Vector3d p_bar = x0.head(3);
-                double t_del = t - t0;
-                p_bar(0) = move_dist*cos(2*M_PI*t_del/move_period);
-                set_pos_desired(p_bar, pos_desired);
-
-                double vel = x.tail(3).norm();
-
-                pos_del_max = pos_del > pos_del_max ? pos_del : pos_del_max;
-                vel_max = vel > vel_max ? vel : vel_max;
-
-                printf("State: %d, ", s);
-                printf("Pos Bar X: % 2.3f, ", p_bar(0));
-                printf("Pos Del: % 2.3f, ", pos_del);
-                printf("Pos Max Del: % 2.3f, ", pos_del_max);
-                printf("Vel: % 2.3f, ", vel);
-                printf("Vel Del: % 2.3f, ", vel_del);
-                printf("Vel Bar: % 2.3f, ", move_dist*sin(2*M_PI*t_del/move_period));
-                printf("Vel Max: % 2.3f, ", vel_max);
-                printf("\n");
-
-
-                break;
-            }
-        }
+        // Print
+            printf("State: %d, ", s);
+            printf("Pos: % 2.3f, % 2.3f, % 2.3f, ", x(0), x(1), x(2));
+            printf("Pos Des: % 2.3f, % 2.3f, % 2.3f, ",
+                   pos_desired.x, pos_desired.y, pos_desired.z);
+            printf("Pos Del: % 2.3f, ", pos_del);
+            printf("Vel: % 2.3f, ", x.tail(3).norm());
+            printf("\n");
 
         // Publish
-        pos_desired_pub.publish(pos_desired);
+            pos_desired_pub.publish(pos_desired);
+        }
 
         // Sleep
         loop_rate.sleep();
@@ -183,6 +195,58 @@ void set_pos_desired(const Vector3d& pos, optitrack::PoseXYZRPY& pos_desired)
     pos_desired.z = pos(2);
 }
 
+int setup_udp_socket(int& fd)
+{
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = (int)(1e6/(double)UPDATE_RATE);
+
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("cannot create socket\n");
+        return 1;
+    }
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(struct timeval));
+
+    struct sockaddr_in ros_addr;    // Address of ROS computer
+    int recv_len;
+
+    memset((char *)&ros_addr, 0, sizeof(ros_addr));
+    ros_addr.sin_family = AF_INET;
+    ros_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    ros_addr.sin_port = htons(SERVICE_PORT);
+
+    if (bind(fd, (struct sockaddr *)&ros_addr, sizeof(ros_addr)) < 0) {
+        perror("bind failed");
+        return 1;
+    }
+
+    return 0;
+}
+
+void parse_buffer(unsigned char* buf, optitrack::PoseXYZRPY& pos_desired)
+{
+    std::string msg(reinterpret_cast<const char*>(buf));
+    std::string::size_type sz = 0;
+
+    if (msg[0] == '$') {
+        // x
+        msg = msg.substr(sz+1);
+        pos_desired.x = stof(msg, &sz);
+
+        // y
+        msg = msg.substr(sz+1);
+        pos_desired.y = stof(msg, &sz);
+
+        // z
+        msg = msg.substr(sz+1);
+        pos_desired.z = stof(msg, &sz);
+
+        // yaw
+        msg = msg.substr(sz+1);
+        pos_desired.yaw = stof(msg, &sz);
+    }
+}
+
 // Subscriber handles
 void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg)
 {
@@ -196,4 +260,6 @@ void handle_vel(const geometry_msgs::Vector3& msg)
     x(3) = msg.x;
     x(4) = msg.y;
     x(5) = msg.z;
+
+    state_valid = true;
 }
