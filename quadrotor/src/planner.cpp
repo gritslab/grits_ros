@@ -5,7 +5,7 @@
  *
  * @author Rowland O'Flaherty
  *
- * @date Rowland O'Flaherty MAY 27
+ * @date 2015 MAY 27
  *
  * @copyright Copyright (C) 2015, see LICENSE file
  */

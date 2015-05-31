@@ -119,6 +119,9 @@ target_link_libraries(communicator ${catkin_LIBRARIES})
 add_executable(planner src/planner.cpp)
 target_link_libraries(planner ${catkin_LIBRARIES})
 
+add_executable(udp_test src/udp_test.cpp)
+target_link_libraries(udp_test ${catkin_LIBRARIES})
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(quadrotor_node quadrotor_generate_messages_cpp)
