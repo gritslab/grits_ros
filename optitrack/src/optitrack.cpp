@@ -84,7 +84,8 @@ struct Trackable {
     :
     aircraft_nominal(0, sqrt(.5), sqrt(.5), 0),
     local(sqrt(.5), sqrt(.5), 0, 0),
-    global(-sqrt(.5), sqrt(.5), 0, 0)
+    // global(-sqrt(.5), sqrt(.5), 0, 0) // ENU with x-axis aligned with optitrack x-axis
+    global(0, 0, sqrt(.5), sqrt(.5)) // ENU with x-axis aligned with projector x-axis
     {
         string connection_str = server_ip + ":" + "3883";
         connection = vrpn_get_connection_by_name(connection_str.c_str());
