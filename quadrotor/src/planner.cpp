@@ -78,7 +78,9 @@ int main(int argc, char *argv[])
 {
     // Initialize constants
     Vector6d x0;
-    x0 << -1.25, -.4, 1.75, 0.0, 0.0, 0.0;
+    // x0 << -1.25, -.4, 1.75, 0.0, 0.0, 0.0;
+    x0 << -1.15, .5, 1.75, 0.0, 0.0, 0.0;
+    // x0 << -2.101, 0.0,  0.750, 0.0, 0.0, 0.0;
 
     double pos_ball = .1;
     double vel_ball = .05;

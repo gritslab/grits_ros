@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
     memset(&pos_desired, 0, sizeof(pos_desired));
     pos_desired.header.marker = 0xFF;
     pos_desired.header.type = POSITION_DESIRED;
-    pos_desired.yaw = 270.0f;
+    pos_desired.yaw = 0.0f;
     pos_desired.header.parity = parity_calc((uint8_t*)&pos_desired,
                                            sizeof(pos_desired));
 
