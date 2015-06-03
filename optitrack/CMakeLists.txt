@@ -5,9 +5,10 @@ project(optitrack)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
+  rospy
   roscpp
-  tf
+  std_msgs
+  geometry_msgs
   message_generation
 )
 
@@ -69,6 +70,7 @@ add_message_files(
 # Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
+  std_msgs
   geometry_msgs
 )
 
@@ -84,7 +86,7 @@ generate_messages(
 catkin_package(
                INCLUDE_DIRS include
                #  LIBRARIES optitrack
-               CATKIN_DEPENDS geometry_msgs roscpp tf message_runtime
+               CATKIN_DEPENDS roscpp std_msgs geometry_msgs message_runtime
                #  DEPENDS system_lib
 )
 

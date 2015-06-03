@@ -20,6 +20,7 @@
 #include <math.h>
 
 #include <optitrack/PoseXYZRPY.h>
+#include <quadrotor/PositionPid.h>
 
 //------------------------------------------------------------------------------
 // Defines
@@ -36,7 +37,8 @@ using namespace std;
 //------------------------------------------------------------------------------
 enum MsgType {
     POSITION = 1,
-    POSITION_DESIRED = 2
+    POSITION_DESIRED = 2,
+    POSITION_PID = 3
 };
 
 // size = 4
@@ -66,6 +68,17 @@ struct MsgPositionDesired {
     float yaw;
 } pos_desired;
 
+// size 4+5*4 = 24
+struct MsgPositionPid {
+    struct MsgHeader header;
+    float xy_p;
+    float xy_d;
+    float z_p;
+    float z_i;
+    float z_d;
+} pos_pid;
+bool new_pos_pid_data = false;
+
 //------------------------------------------------------------------------------
 // Function Declarations
 //------------------------------------------------------------------------------
@@ -75,6 +88,7 @@ void set_pos_data(float x, float y, float z, float yaw,
 
 void handle_poseXYZRPY(const optitrack::PoseXYZRPY& msg);
 void handle_pos_desired(const optitrack::PoseXYZRPY& msg);
+void handle_pos_pid(const quadrotor::PositionPid& msg);
 
 uint8_t parity_calc(uint8_t* msg, uint8_t parity_byte_ind);
 int set_interface_attribs(int fd, int speed, int parity);
@@ -99,6 +113,8 @@ int main(int argc, char *argv[])
                                                    1,
                                                    handle_pos_desired);
 
+    ros::Subscriber pos_pid_sub = nh.subscribe("/pos_pid",1,handle_pos_pid);
+
     // Setup serial comms
     string portname = "/dev/ttyUSB0";
 
@@ -114,6 +130,11 @@ int main(int argc, char *argv[])
     pos_desired.yaw = 0.0f;
     pos_desired.header.parity = parity_calc((uint8_t*)&pos_desired,
                                            sizeof(pos_desired));
+
+    memset(&pos_pid, 0, sizeof(pos_pid));
+    pos_pid.header.marker = 0xFF;
+    pos_pid.header.type = POSITION_PID;
+    pos_pid.header.parity = parity_calc((uint8_t*)&pos_pid, sizeof(pos_pid));
 
     ROS_INFO("Opening port: %s", portname.c_str());
     int fd = open(portname.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
@@ -136,9 +157,18 @@ int main(int argc, char *argv[])
         write(fd, &pos_desired, sizeof(pos_desired));
         loop_rate.sleep();
 
-        ROS_INFO("Sent: %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f",
+        ROS_INFO("Sent POS: %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f, %2.3f",
                  pos.x, pos.y, pos.z, pos.yaw,
                  pos_desired.x, pos_desired.y, pos_desired.z, pos_desired.yaw);
+
+        if (new_pos_pid_data) {
+            write(fd, &pos_pid, sizeof(pos_pid));
+            loop_rate.sleep();
+            ROS_INFO("Sent PID: %2.3f, %2.3f, %2.3f, %2.3f, %2.3f",
+                     pos_pid.xy_p, pos_pid.xy_d,
+                     pos_pid.z_p, pos_pid.z_i, pos_pid.z_d);
+            new_pos_pid_data = false;
+        }
 
         ros::spinOnce();
     }
@@ -182,6 +212,19 @@ void handle_pos_desired(const optitrack::PoseXYZRPY& msg)
     // Convert from ENU to NED and degrees
     set_pos_desired_data(msg.y, msg.x, -msg.z, msg.yaw/M_PI * 180.0f,
                          pos_desired);
+}
+
+void handle_pos_pid(const quadrotor::PositionPid& msg)
+{
+    pos_pid.xy_p = msg.xy_p;
+    pos_pid.xy_d = msg.xy_d;
+    pos_pid.z_p = msg.z_p;
+    pos_pid.z_i = msg.z_i;
+    pos_pid.z_d = msg.z_d;
+
+    pos_pid.header.parity = parity_calc((uint8_t*)&pos_pid, sizeof(pos_pid));
+
+    new_pos_pid_data = true;
 }
 
 uint8_t parity_calc(uint8_t* msg, uint8_t msg_size)

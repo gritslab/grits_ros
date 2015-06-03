@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+
+import rospy
+from quadrotor.msg import PositionPid
+
+import Tkinter as tk
+from Tkinter import *
+
+import socket
+import json
+
+defaults_pos = {
+    "xy_p"          : (0,   0.2   , .01),
+    "xy_d"          : (1,   0.2   , .01),
+    "z_p"           : (2,   1.0   , .01),
+    "z_i"           : (3,   0.1   , .01),
+    "z_d"           : (4,   0.3   , .01),
+}
+
+class ParamButton:
+    def __init__(self, param_name, tuner, val=0, increment=.1, row=0, col=0):
+        self.param_name = param_name
+        self.tuner = tuner
+
+        self.val = val
+
+        self.increment_scale = increment
+
+        self.button = Button(self.tuner.frame, text=self.param_name,
+                                        command=self.click)
+        self.button.grid(row=row, column=col)
+
+        self.t = Text(self.tuner.frame, height=1, width=10)
+        self.t.grid(row=row, column=col+1)
+        self.t.insert(INSERT, str(self.val))
+
+
+    def click(self):
+        self.tuner.set_active_button(self)
+
+    def set_val(self, val):
+        self.val = val
+
+        self.t.delete(1.0, END)
+        self.t.insert(INSERT, str(round(self.val,ndigits=6)))
+        self.tuner.frame.pack()
+
+    def increment_val(self, amount):
+        self.val += amount * self.increment_scale
+
+        self.tuner.send_param(self.param_name, self.val)
+
+        self.t.delete(1.0, END)
+        self.t.insert(INSERT, str(round(self.val,ndigits=6)))
+        self.tuner.frame.pack()
+
+class PosPid:
+    def __init__(self):
+        self.pos_pid = PositionPid();
+        self.pos_pid_pub = rospy.Publisher('pos_pid', PositionPid, queue_size=1)
+
+        self.pos_pid.xy_p = defaults_pos['xy_p'][1]
+        self.pos_pid.xy_p = defaults_pos['xy_d'][1]
+        self.pos_pid.z_p = defaults_pos['z_p'][1]
+        self.pos_pid.z_i = defaults_pos['z_i'][1]
+        self.pos_pid.z_d = defaults_pos['z_d'][1]
+
+        self.root = tk.Tk()
+        self.frame = Frame(self.root)
+
+        self.width = 500
+        self.height = 500
+
+        self.buttons = []
+        for index,key in enumerate(sorted(defaults_pos,
+                                key = lambda x: defaults_pos[x][0])):
+            self.add_button(key, val=defaults_pos[key][1],
+                                                increment=defaults_pos[key][2],
+                                                row=index,
+                                                col=0)
+
+        self.root.bind("<Key>", self.key_callback)
+        self.frame.pack()
+
+    def send_param(self, param, val):
+        d = {
+            "name":             param,
+            "value":            val
+        }
+        s = json.dumps(d)
+        print "SENDING",s
+
+        if param is "xy_p":
+            self.pos_pid.xy_p = val
+        if param is "xy_d":
+            self.pos_pid.xy_d = val
+        if param is "z_p":
+            self.pos_pid.z_p = val
+        if param is "z_i":
+            self.pos_pid.z_i = val
+        if param is "z_d":
+            self.pos_pid.z_d = val
+
+        self.pos_pid_pub.publish(self.pos_pid)
+
+    def set_button_val(self, name, val):
+        for b in self.buttons:
+            if b.param_name == name:
+                b.set_val(val)
+
+
+    def add_button(self, name, val=0, increment=.1, row=0, col=0):
+        self.buttons.append(ParamButton(name, self, val=val,
+                                                    increment=increment,
+                                                    row=row,
+                                                    col=col))
+    def set_active_button(self, button):
+        for b in self.buttons:
+            if b is button:
+                b.button.config(background = "green")
+                b.button.config(activebackground = "green")
+            else:
+                b.button.config(background = "white")
+                b.button.config(activebackground = "white")
+
+        self.frame.pack()
+        self.active_button = button
+
+    def key_callback(self, event):
+        if event.keycode == 111: #up
+            self.active_button.increment_val(1)
+        if event.keycode == 116: #down
+            self.active_button.increment_val(-1)
+
+    def spin(self):
+        self.root.mainloop()
+
+if __name__=="__main__":
+    rospy.init_node('position_pid')
+
+    t = PosPid()
+    t.spin()

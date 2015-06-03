@@ -48,7 +48,7 @@ enum FiniteState {
 //------------------------------------------------------------------------------
 // Global Constants Declarations
 //------------------------------------------------------------------------------
-const int UPDATE_RATE = 25;
+const int UPDATE_RATE = 50;
 const int SERVICE_PORT = 21234;
 const int BUF_SIZE = 2048;
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     // Initialize constants
     Vector6d x0;
     // x0 << -1.25, -.4, 1.75, 0.0, 0.0, 0.0;
-    x0 << -1.15, .5, 1.75, 0.0, 0.0, 0.0;
+    x0 << -1.15, .5, 1.3, 0.0, 0.0, 0.0;
     // x0 << -2.101, 0.0,  0.750, 0.0, 0.0, 0.0;
 
     double pos_ball = .1;
