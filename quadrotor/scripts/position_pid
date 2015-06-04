@@ -10,11 +10,11 @@ import socket
 import json
 
 defaults_pos = {
-    "xy_p"          : (0,   0.2   , .01),
-    "xy_d"          : (1,   0.2   , .01),
-    "z_p"           : (2,   1.0   , .01),
-    "z_i"           : (3,   0.1   , .01),
-    "z_d"           : (4,   0.3   , .01),
+    "xy_p"          : (0,   0.95   , .01),
+    "xy_d"          : (1,   1.7   , .01),
+    "z_p"           : (2,   2.0   , .01),
+    "z_i"           : (3,   0.4   , .01),
+    "z_d"           : (4,   1.0   , .01),
 }
 
 class ParamButton:
@@ -60,7 +60,7 @@ class PosPid:
         self.pos_pid_pub = rospy.Publisher('pos_pid', PositionPid, queue_size=1)
 
         self.pos_pid.xy_p = defaults_pos['xy_p'][1]
-        self.pos_pid.xy_p = defaults_pos['xy_d'][1]
+        self.pos_pid.xy_d = defaults_pos['xy_d'][1]
         self.pos_pid.z_p = defaults_pos['z_p'][1]
         self.pos_pid.z_i = defaults_pos['z_i'][1]
         self.pos_pid.z_d = defaults_pos['z_d'][1]
